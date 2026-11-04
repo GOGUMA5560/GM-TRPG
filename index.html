@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#171923">
+<title>GM-TRPG</title>
+<style>
+:root{color-scheme:dark;--bg:#11131b;--panel:#1b1f2b;--panel2:#242a38;--line:#353d50;--txt:#f4f5f8;--muted:#aab2c3;--accent:#b89aff;--good:#78d6aa;--bad:#ff8585}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(160deg,#171a26,#0e1017);color:var(--txt);font:15px system-ui,-apple-system,"Noto Sans KR",sans-serif}
+header{padding:20px 16px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#141722ed;backdrop-filter:blur(12px);z-index:3}
+h1{font-size:22px;margin:0}header p{margin:4px 0 0;color:var(--muted);font-size:12px}
+main{max-width:850px;margin:auto;padding:16px;display:grid;gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:15px;box-shadow:0 8px 30px #0002}
+h2{font-size:16px;margin:0 0 12px}.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1;min-width:110px}
+label{display:block;color:var(--muted);font-size:12px;margin:9px 0 5px}
+input,textarea,select{width:100%;background:#10131c;color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:11px;font:inherit;outline:none}
+textarea{min-height:76px;resize:vertical}button{border:0;border-radius:10px;padding:11px 14px;background:var(--accent);color:#171323;font-weight:750;font-size:14px;cursor:pointer}
+button.secondary{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}button.danger{background:#572b38;color:#ffe3e7}
+button:disabled{opacity:.45;cursor:not-allowed}.muted{color:var(--muted);font-size:12px}.status{padding:9px 11px;border-radius:10px;background:#262c3a;color:var(--muted);font-size:13px}
+.status.good{color:var(--good)}.status.bad{color:var(--bad)}
+.hidden{display:none!important}.pill{display:inline-block;border:1px solid var(--line);border-radius:30px;padding:4px 9px;font-size:11px;color:var(--muted);margin:2px}
+.tabs{display:flex;gap:7px;overflow:auto}.tabs button{white-space:nowrap}.tabs button.active{background:var(--accent);color:#171323}
+.item{padding:10px 0;border-top:1px solid var(--line)}.item:first-child{border-top:0}.item strong{display:block}.item small{color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stat{background:#11151f;border:1px solid var(--line);padding:10px;border-radius:12px}.stat b{display:block;font-size:20px}
+#roomCode{font-size:26px;letter-spacing:5px;font-weight:800;color:var(--accent)}
+footer{text-align:center;color:var(--muted);font-size:11px;padding:10px 16px 28px}
+@media(max-width:520px){main{padding:11px}.card{padding:13px}.grid{grid-template-columns:1fr 1fr}header{padding:16px 13px}}
+</style>
+</head>
+<body>
+<header><h1>⚔ GM-TRPG</h1><p>스마트폰 온라인 테이블탑 RPG · 최대 6명</p></header>
+<main>
+<section class="card" id="setupCard">
+<h2>① 온라인 연결 설정</h2>
+<p class="muted">Firebase 프로젝트의 웹 앱 설정값을 입력해. 설정값은 이 기기에만 저장돼.</p>
+<div class="row"><div><label>API Key</label><input id="apiKey" placeholder="AIza..."></div><div><label>Project ID</label><input id="projectId" placeholder="my-trpg-project"></div></div>
+<div class="row"><div><label>Database URL</label><input id="databaseURL" placeholder="https://...firebasedatabase.app"></div><div><label>App ID</label><input id="appId" placeholder="1:...:web:..."></div></div>
+<div class="row"><div><label>Auth Domain (선택)</label><input id="authDomain" placeholder="project-id.firebaseapp.com"></div><div><label>Sender ID (선택)</label><input id="messagingSenderId" placeholder="..."></div></div>
+<div class="row"><button id="connectBtn">Firebase 연결</button><button class="secondary" id="clearConfigBtn">설정 지우기</button></div>
+<p class="muted">연결하려면 Firebase에서 Authentication의 익명 로그인과 Realtime Database를 활성화해야 해. 자세한 방법은 README에 있어.</p>
+</section>
+<div id="status" class="status">Firebase 연결 전</div>
+<section class="card" id="lobbyCard">
+<h2>② 방 만들기 / 참가하기</h2>
+<label>내 표시 이름</label><input id="displayName" maxlength="18" placeholder="예: 고구마">
+<div class="row" style="margin-top:10px"><button id="createBtn" disabled>새 방 만들기 (GM)</button><div><label>6자리 방 코드</label><input id="joinCode" maxlength="6" inputmode="numeric" placeholder="123456"></div><button id="joinBtn" class="secondary" disabled>참가</button></div>
+</section>
+<section class="card hidden" id="gameCard">
+<div class="row" style="align-items:center"><div><span class="muted">현재 방 코드</span><div id="roomCode">------</div></div><div style="text-align:right"><span class="pill" id="rolePill">PLAYER</span><span class="pill" id="countPill">0/6명</span><button class="secondary" id="copyCodeBtn">코드 복사</button></div></div>
+<div class="tabs" style="margin:14px 0"><button class="active" data-tab="table">테이블</button><button class="secondary" data-tab="character">캐릭터</button><button class="secondary" data-tab="secret">비밀 정보</button><button class="secondary" data-tab="history">기록</button></div>
+<div id="tab-table">
+<div class="card" style="background:var(--panel2);margin-bottom:12px"><h2>현재 장면</h2><div id="sceneText" class="muted">GM이 장면을 입력하면 여기에 표시돼.</div></div>
+<div id="gmControls" class="card hidden" style="margin-bottom:12px"><h2>GM 장면 관리</h2><textarea id="sceneInput" placeholder="플레이어에게 공개할 장면과 상황을 입력해."></textarea><button id="publishSceneBtn" style="margin-top:8px">장면 공개</button>
+<label>GM 전용 메모</label><textarea id="gmSecretInput" placeholder="GM만 볼 수 있는 메모"></textarea><button id="saveGmSecretBtn" class="secondary" style="margin-top:8px">GM 메모 저장</button></div>
+<h2>참가자</h2><div id="playersList"></div>
+<div class="card" style="background:var(--panel2);margin:12px 0"><h2>행동 선언</h2><textarea id="actionInput" placeholder="내 캐릭터가 무엇을 하는지 입력해."></textarea><button id="submitActionBtn" style="margin-top:8px">행동 제출</button><div id="actionsList" style="margin-top:10px"></div></div>
+<div class="card" style="background:var(--panel2)"><h2>주사위</h2><div class="row"><select id="diceType"><option value="4">D4</option><option value="6">D6</option><option value="8">D8</option><option value="10">D10</option><option value="12">D12</option><option value="20" selected>D20</option><option value="100">D100</option></select><input id="modifier" type="number" value="0" placeholder="보정치"></div><button id="rollBtn" style="margin-top:8px">굴리기</button><div id="diceResult" class="muted" style="margin-top:8px">아직 굴리지 않았어.</div></div>
+</div>
+<div id="tab-character" class="hidden">
+<h2>내 캐릭터</h2><label>캐릭터 이름</label><input id="charName" maxlength="24" placeholder="캐릭터 이름">
+<div class="grid"><div><label>근력 STR</label><input id="str" type="number" value="10"></div><div><label>민첩 DEX</label><input id="dex" type="number" value="10"></div><div><label>체력 CON</label><input id="con" type="number" value="10"></div><div><label>지능 INT</label><input id="int" type="number" value="10"></div><div><label>지혜 WIS</label><input id="wis" type="number" value="10"></div><div><label>매력 CHA</label><input id="cha" type="number" value="10"></div></div>
+<div class="row"><div><label>HP</label><input id="hp" type="number" value="20"></div><div><label>최대 HP</label><input id="maxHp" type="number" value="20"></div></div>
+<label>소지품 (쉼표로 구분)</label><input id="inventory" placeholder="장검, 물약, 지도">
+<label>상태 / 설명</label><textarea id="charNotes" placeholder="상태이상, 배경, 특징 등"></textarea>
+<button id="saveCharBtn" style="margin-top:10px">캐릭터 저장</button>
+</div>
+<div id="tab-secret" class="hidden">
+<h2>개인 비밀 메시지</h2><div id="privateMessages" class="muted">아직 받은 비밀 메시지가 없어.</div>
+<div id="gmSendBox" class="hidden"><label>보낼 플레이어</label><select id="secretTarget"></select><label>비밀 메시지</label><textarea id="secretText" placeholder="선택한 플레이어에게만 보이는 정보"></textarea><button id="sendSecretBtn" style="margin-top:8px">비밀 메시지 보내기</button></div>
+<div id="gmSecretView" class="hidden"><h2 style="margin-top:18px">GM 전용 메모</h2><div id="gmSecretText" class="muted">저장된 메모가 없어.</div></div>
+</div>
+<div id="tab-history" class="hidden"><h2>세션 기록</h2><div id="historyList" class="muted">기록이 없어.</div></div>
+<div class="row" style="margin-top:14px"><button class="danger" id="leaveBtn">방 나가기</button></div>
+</section>
+</main>
+<footer>GM-TRPG · 온라인 동기화는 Firebase 설정 후 작동해.</footer>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { getDatabase, ref, get, set, update, push, onValue, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+const $=id=>document.getElementById(id);
+let app,auth,db,user=null,room=null,role=null,unsubs=[],roomData={},privateData={},gmPrivate={};
+const cfgFields=["apiKey","projectId","databaseURL","appId","authDomain","messagingSenderId"];
+function status(msg,type=""){ $("status").textContent=msg;$("status").className="status "+type; }
+function cfgFromUI(){return {apiKey:$("apiKey").value.trim(),projectId:$("projectId").value.trim(),databaseURL:$("databaseURL").value.trim(),appId:$("appId").value.trim(),authDomain:$("authDomain").value.trim(),messagingSenderId:$("messagingSenderId").value.trim()}}
+function loadCfg(){try{const c=JSON.parse(localStorage.getItem("gmFirebaseConfig")||"{}");for(const f of cfgFields)if(c[f])$(f).value=c[f]}catch{}}
+function cleanListeners(){unsubs.forEach(u=>u());unsubs=[]}
+function code6(){return String(Math.floor(100000+Math.random()*900000))}
+function escapeHTML(s=""){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+async function connect(){
+ try{
+ const c=cfgFromUI();if(!c.apiKey||!c.projectId||!c.databaseURL||!c.appId)throw Error("API Key, Project ID, Database URL, App ID를 모두 입력해.");
+ const config={apiKey:c.apiKey,authDomain:c.authDomain||`${c.projectId}.firebaseapp.com`,databaseURL:c.databaseURL,projectId:c.projectId,appId:c.appId,messagingSenderId:c.messagingSenderId};
+ app=initializeApp(config);auth=getAuth(app);db=getDatabase(app);
+ await signInAnonymously(auth);
+ onAuthStateChanged(auth,u=>{user=u;if(u){$("createBtn").disabled=false;$("joinBtn").disabled=false;status("Firebase 연결 완료 · 익명 계정으로 접속했어.","good")}});
+ localStorage.setItem("gmFirebaseConfig",JSON.stringify(c));
+ }catch(e){status("연결 실패: "+e.message,"bad")}
+}
+function roomRef(path=""){return ref(db,`rooms/${room}${path?"/"+path:""}`)}
+function privateRef(path=""){return ref(db,`private/${room}${path?"/"+path:""}`)}
+async function createRoom(){
+ if(!user)return;const name=$("displayName").value.trim()||"GM";
+ for(let i=0;i<8;i++){const code=code6(),snap=await get(ref(db,"rooms/"+code));if(!snap.exists()){
+ room=code;role="gm";
+ await set(roomRef("meta"),{gmUid:user.uid,createdAt:Date.now(),status:"active"});
+ await set(roomRef("players/"+user.uid),{uid:user.uid,name,role:"gm",joinedAt:Date.now(),character:{name:"GM",hp:20,maxHp:20}});
+ await set(roomRef("scene"),"모험이 시작된다.");
+ await set(roomRef("actions"),{}); await set(roomRef("history"),{}); await set(roomRef("updatedAt"),Date.now());
+ await set(privateRef("gm"),{notes:""});await set(privateRef("users/"+user.uid),{messages:[]});enterRoom();return;
+ }}status("방 코드 생성에 실패했어. 다시 시도해줘.","bad");
+}
+async function joinRoom(){
+ if(!user)return;const code=$("joinCode").value.trim();if(!/^\d{6}$/.test(code)){status("6자리 숫자 방 코드를 입력해.","bad");return}
+ const snap=await get(ref(db,"rooms/"+code));if(!snap.exists()){status("방을 찾을 수 없어. 코드를 확인해줘.","bad");return}
+ const data=snap.val(),players=data.players||{};if(!players[user.uid]&&Object.keys(players).length>=6){status("방 인원이 가득 찼어. (최대 6명)","bad");return}
+ room=code;role=data.meta?.gmUid===user.uid?"gm":"player";
+ await set(roomRef("players/"+user.uid),{uid:user.uid,name:$("displayName").value.trim()||"플레이어",role,joinedAt:Date.now(),character:{name:"",hp:20,maxHp:20}});
+ await set(privateRef("users/"+user.uid),{messages:[]});enterRoom();
+}
+function enterRoom(){
+ $("lobbyCard").classList.add("hidden");$("gameCard").classList.remove("hidden");$("roomCode").textContent=room;$("rolePill").textContent=role==="gm"?"GM":"PLAYER";
+ $("gmControls").classList.toggle("hidden",role!=="gm");$("gmSendBox").classList.toggle("hidden",role!=="gm");$("gmSecretView").classList.toggle("hidden",role!=="gm");
+ cleanListeners();
+ const listen=(r,cb)=>{const u=onValue(r,s=>cb(s.val()));unsubs.push(u)};
+ listen(roomRef(),v=>{roomData=v||{};renderRoom()});
+ listen(privateRef("users/"+user.uid),v=>{privateData=v||{};renderPrivate()});
+ if(role==="gm")listen(privateRef("gm"),v=>{gmPrivate=v||{};$("gmSecretText").textContent=gmPrivate.notes||"저장된 메모가 없어.";});
+}
+function renderRoom(){
+ const players=roomData.players||{},ids=Object.keys(players);$("countPill").textContent=ids.length+"/6명";
+ $("playersList").innerHTML=ids.map(id=>{const p=players[id],c=p.character||{};return `<div class="item"><strong>${escapeHTML(c.name||p.name||"플레이어")} ${p.role==="gm"?'<span class="pill">GM</span>':""}</strong><small>HP ${Number(c.hp??20)}/${Number(c.maxHp??20)} · ${escapeHTML(c.notes||"상태 양호")}</small></div>`}).join("");
+ $("sceneText").textContent=roomData.scene||"아직 공개된 장면이 없어.";
+ const actions=Object.values(roomData.actions||{}).sort((a,b)=>(b.time||0)-(a.time||0));
+ $("actionsList").innerHTML=actions.length?actions.map(a=>`<div class="item"><strong>${escapeHTML(a.name||"플레이어")}</strong><small>${escapeHTML(a.text||"")}</small></div>`).join(""):"<p class='muted'>아직 제출된 행동이 없어.</p>";
+ const history=Object.values(roomData.history||{}).sort((a,b)=>(b.time||0)-(a.time||0));
+ $("historyList").innerHTML=history.length?history.map(h=>`<div class="item"><strong>${escapeHTML(h.title||"기록")}</strong><small>${escapeHTML(h.text||"")}</small></div>`).join(""):"기록이 없어.";
+ const target=$("secretTarget"),old=target.value;target.innerHTML=ids.filter(id=>id!==user.uid).map(id=>`<option value="${id}">${escapeHTML(players[id].name||"플레이어")}</option>`).join("");if(old)target.value=old;
+ const me=players[user.uid];if(me?.character)fillCharacter(me.character);
+}
+function fillCharacter(c){$("charName").value=c.name||"";["str","dex","con","int","wis","cha","hp","maxHp"].forEach(k=>$(k).value=c[k]??(k==="hp"||k==="maxHp"?20:10));$("inventory").value=(c.inventory||[]).join(", ");$("charNotes").value=c.notes||""}
+async function saveCharacter(){
+ const c={name:$("charName").value.trim(),str:+$("str").value,dex:+$("dex").value,con:+$("con").value,int:+$("int").value,wis:+$("wis").value,cha:+$("cha").value,hp:+$("hp").value,maxHp:+$("maxHp").value,inventory:$("inventory").value.split(",").map(x=>x.trim()).filter(Boolean),notes:$("charNotes").value};
+ await update(roomRef("players/"+user.uid),{character:c});await addHistory("캐릭터 변경",c.name+" 캐릭터 정보를 저장함");
+}
+async function submitAction(){
+ const text=$("actionInput").value.trim();if(!text)return;await push(roomRef("actions"),{uid:user.uid,name:roomData.players?.[user.uid]?.name||"플레이어",text,time:Date.now()});await addHistory("행동 선언",(roomData.players?.[user.uid]?.name||"플레이어")+": "+text);$("actionInput").value="";
+}
+async function addHistory(title,text){await push(roomRef("history"),{title,text,time:Date.now()})}
+async function publishScene(){const s=$("sceneInput").value.trim();if(!s)return;await update(roomRef(),{scene:s,updatedAt:Date.now()});await addHistory("새 장면",s);$("sceneInput").value=""}
+async function saveGmSecret(){await set(privateRef("gm"),{notes:$("gmSecretInput").value});$("gmSecretText").textContent=$("gmSecretInput").value||"저장된 메모가 없어.";status("GM 전용 메모 저장 완료","good")}
+async function sendSecret(){const to=$("secretTarget").value,msg=$("secretText").value.trim();if(!to||!msg)return;const snap=await get(privateRef("users/"+to+"/messages"));const arr=snap.val()||[];arr.push({from:"GM",text:msg,time:Date.now()});await set(privateRef("users/"+to+"/messages"),arr);$("secretText").value="";status("비밀 메시지를 보냈어.","good")}
+function renderPrivate(){const m=privateData.messages||[];$("privateMessages").innerHTML=m.length?m.map(x=>`<div class="item"><strong>${escapeHTML(x.from||"GM")}</strong><small>${escapeHTML(x.text||"")}</small></div>`).join(""):"아직 받은 비밀 메시지가 없어."}
+async function rollDice(){const sides=+$("diceType").value,mod=+$("modifier").value,raw=Math.floor(Math.random()*sides)+1,total=raw+mod;const line=`${roomData.players?.[user.uid]?.name||"플레이어"}: D${sides} (${raw}) ${mod>=0?"+":""}${mod} = ${total}`;$("diceResult").textContent=line;await addHistory("주사위",line)}
+async function leaveRoom(){cleanListeners();if(room&&user){if(role==="gm")await update(roomRef(),{"meta/status":"closed"}).catch(()=>{});else await remove(roomRef("players/"+user.uid)).catch(()=>{})}room=null;role=null;$("gameCard").classList.add("hidden");$("lobbyCard").classList.remove("hidden");status("방에서 나왔어.")}
+$("connectBtn").onclick=connect;$("clearConfigBtn").onclick=()=>{localStorage.removeItem("gmFirebaseConfig");cfgFields.forEach(f=>$(f).value="");status("저장된 Firebase 설정을 지웠어.")};
+$("createBtn").onclick=createRoom;$("joinBtn").onclick=joinRoom;$("copyCodeBtn").onclick=()=>navigator.clipboard?.writeText(room);
+$("saveCharBtn").onclick=saveCharacter;$("submitActionBtn").onclick=submitAction;$("publishSceneBtn").onclick=publishScene;$("saveGmSecretBtn").onclick=saveGmSecret;$("sendSecretBtn").onclick=sendSecret;$("rollBtn").onclick=rollDice;$("leaveBtn").onclick=leaveRoom;
+document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{document.querySelectorAll("[data-tab]").forEach(x=>{x.classList.toggle("active",x===b);x.classList.toggle("secondary",x!==b)});["table","character","secret","history"].forEach(t=>$("tab-"+t).classList.toggle("hidden",t!==b.dataset.tab))});
+loadCfg();
+</script>
+</body></html>

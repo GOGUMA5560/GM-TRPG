@@ -1,0 +1,54 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      "$room": {
+        "metadata": {
+          ".read": "auth != null",
+          ".write": "auth != null && (!data.exists() || data.child('gmUid').val() == auth.uid || data.child('gmUid').val() == null)"
+        },
+        "members": {
+          ".read": "auth != null && root.child('rooms').child($room).child('metadata').exists()",
+          "$uid": {
+            ".write": "auth != null && (auth.uid == $uid || root.child('rooms').child($room).child('metadata').child('gmUid').val() == auth.uid)"
+          }
+        },
+        "scene": {
+          ".read": "auth != null && root.child('rooms').child($room).child('members').child(auth.uid).exists()",
+          ".write": "auth != null && root.child('rooms').child($room).child('metadata').child('gmUid').val() == auth.uid"
+        },
+        "actions": {
+          ".read": "auth != null && root.child('rooms').child($room).child('members').child(auth.uid).exists()",
+          "$entry": {
+            ".write": "auth != null && root.child('rooms').child($room).child('members').child(auth.uid).exists()"
+          }
+        },
+        "rolls": {
+          ".read": "auth != null && root.child('rooms').child($room).child('members').child(auth.uid).exists()",
+          "$entry": {
+            ".write": "auth != null && root.child('rooms').child($room).child('members').child(auth.uid).exists()"
+          }
+        },
+        "records": {
+          ".read": "auth != null && root.child('rooms').child($room).child('members').child(auth.uid).exists()",
+          "$entry": {
+            ".write": "auth != null && root.child('rooms').child($room).child('metadata').child('gmUid').val() == auth.uid"
+          }
+        },
+        "characters": {
+          ".read": "auth != null && root.child('rooms').child($room).child('members').child(auth.uid).exists()",
+          "$uid": {
+            ".write": "auth != null && root.child('rooms').child($room).child('members').child(auth.uid).exists() && (auth.uid == $uid || root.child('rooms').child($room).child('metadata').child('gmUid').val() == auth.uid)"
+          }
+        },
+        "secrets": {
+          "$uid": {
+            ".read": "auth != null && (auth.uid == $uid || root.child('rooms').child($room).child('metadata').child('gmUid').val() == auth.uid)",
+            ".write": "auth != null && root.child('rooms').child($room).child('metadata').child('gmUid').val() == auth.uid"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#11131b">
+<title>GM-TRPG</title>
+<style>
+:root{color-scheme:dark;--bg:#11131b;--panel:#1b1f2b;--panel2:#242a39;--line:#343c50;--txt:#f1f3f8;--muted:#a6afc2;--accent:#b9a2ff;--good:#76d6a0;--bad:#ff8c8c}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#20243a 0,#11131b 58%);color:var(--txt);font:15px/1.5 system-ui,-apple-system,"Noto Sans KR",sans-serif}
+button,input,textarea,select{font:inherit}button{border:0;border-radius:12px;padding:11px 14px;background:var(--accent);color:#171323;font-weight:750;cursor:pointer}button.secondary{background:#30384b;color:var(--txt);border:1px solid var(--line)}button.danger{background:#512d39;color:#ffdce2}button:disabled{opacity:.45;cursor:not-allowed}
+.wrap{max-width:980px;margin:auto;padding:20px 14px 60px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}.brand{font-size:25px;font-weight:900;letter-spacing:.4px}.sub{color:var(--muted);font-size:13px}.status{font-size:12px;padding:6px 10px;border:1px solid var(--line);border-radius:99px;color:var(--muted)}
+.card{background:linear-gradient(145deg,rgba(32,37,53,.97),rgba(25,29,41,.97));border:1px solid var(--line);border-radius:18px;padding:17px;margin:12px 0;box-shadow:0 12px 35px #0002}
+h2{font-size:17px;margin:0 0 12px}h3{font-size:14px;margin:0 0 8px;color:#d9d2ff}
+label{display:block;color:var(--muted);font-size:12px;margin:10px 0 5px}
+input,textarea,select{width:100%;border:1px solid var(--line);background:#111521;color:var(--txt);border-radius:10px;padding:11px;outline:none}
+textarea{min-height:90px;resize:vertical}input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.row>*{flex:1}.row .fit{flex:0 0 auto}
+.hidden{display:none!important}.muted{color:var(--muted)}.small{font-size:12px}.pill{display:inline-block;padding:3px 8px;border-radius:99px;background:#343049;color:#e2d9ff;font-size:11px}
+.tabs{display:flex;gap:7px;overflow:auto;padding:3px 0 10px}.tabs button{white-space:nowrap;background:#252b3a;color:var(--muted);padding:9px 12px}.tabs button.active{background:var(--accent);color:#171323}
+.panel{display:none}.panel.active{display:block}.item{padding:10px 0;border-bottom:1px solid #303748}.item:last-child{border:0}.item strong{display:block}.log{white-space:pre-wrap;overflow-wrap:anywhere}.notice{padding:11px;border:1px solid #5b4c83;background:#29233d;border-radius:12px;color:#e6ddff;font-size:13px}
+#toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#ece7ff;color:#171323;padding:10px 16px;border-radius:99px;font-weight:700;z-index:20;display:none;max-width:90%;text-align:center}
+.member{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #303748}
+@media(max-width:560px){.wrap{padding:14px 10px 40px}.grid{grid-template-columns:1fr}.card{padding:14px}.brand{font-size:22px}.top{align-items:flex-start}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div><div class="brand">⚔ GM-TRPG</div><div class="sub">온라인 테이블탑 RPG · GM 1명 + 플레이어 최대 5명</div></div>
+    <div id="connection" class="status">연결 확인 중</div>
+  </header>
+
+  <section id="setup" class="card">
+    <h2>온라인 연결 준비</h2>
+    <p class="muted small">기존 Firebase 프로젝트에 연결해. 설정은 이 기기에 저장되며 다른 참가자는 각자 한 번 설정할 필요 없이 같은 앱 설정을 사용해야 해.</p>
+    <div class="notice">프로젝트 ID와 데이터베이스 주소는 이미 입력되어 있어. Firebase 웹 앱 설정 전체를 한 번만 붙여 넣으면 이후에는 자동 연결돼.</div>
+    <label for="configJson">Firebase 웹 앱 설정 JSON</label>
+    <textarea id="configJson" spellcheck="false" placeholder='{"apiKey":"...","authDomain":"...","projectId":"gm-trpg-d3974","databaseURL":"https://gm-trpg-d3974-default-rtdb.asia-southeast1.firebasedatabase.app","appId":"..."}'></textarea>
+    <div class="row"><button id="saveConfig">설정 저장 및 연결</button><button class="secondary fit" id="forgetConfig">저장 설정 지우기</button></div>
+    <p class="muted small">Firebase Console → 프로젝트 설정 → 내 앱 → SDK 설정 및 구성에서 웹 앱 설정을 복사할 수 있어. API Key와 App ID는 데이터베이스 주소만으로 계산할 수 없어.</p>
+  </section>
+
+  <section id="lobby" class="card">
+    <h2>방 만들기 / 참가하기</h2>
+    <label for="displayName">내 표시 이름</label><input id="displayName" maxlength="20" placeholder="예: 고구마">
+    <div class="row" style="margin-top:10px"><button id="createRoom">새 방 만들기 (GM)</button></div>
+    <label for="roomCode">6자리 방 코드</label><input id="roomCode" inputmode="numeric" maxlength="6" placeholder="123456">
+    <div class="row" style="margin-top:10px"><button id="joinRoom">방 참가</button></div>
+  </section>
+
+  <main id="game" class="hidden">
+    <section class="card">
+      <div class="row">
+        <div><div class="muted small">현재 방 코드</div><div id="currentCode" style="font-size:28px;font-weight:900;letter-spacing:3px">------</div></div>
+        <button id="copyCode" class="secondary fit">코드 복사</button>
+        <button id="leaveRoom" class="danger fit">나가기</button>
+      </div>
+      <div class="muted small" id="roomMeta">PLAYER 0/6명</div>
+      <div id="members"></div>
+    </section>
+
+    <nav class="tabs">
+      <button class="active" data-tab="table">테이블</button><button data-tab="character">캐릭터</button><button data-tab="secret">비밀 정보</button><button data-tab="records">기록</button>
+    </nav>
+
+    <section id="tab-table" class="panel active">
+      <div class="card">
+        <h2>현재 장면</h2>
+        <div id="sceneView" class="log muted">GM이 장면을 입력하면 여기에 표시돼.</div>
+        <div id="gmScene" class="hidden">
+          <label for="sceneInput">장면 내용 (GM 전용 편집)</label><textarea id="sceneInput" placeholder="현재 상황, 장소, 인물, 분위기 등을 입력해."></textarea>
+          <button id="saveScene">장면 업데이트</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>행동 선언</h2>
+        <textarea id="actionInput" placeholder="내 캐릭터가 무엇을 하는지 선언해."></textarea>
+        <button id="sendAction">행동 제출</button>
+        <div id="actionsList" style="margin-top:12px"></div>
+      </div>
+      <div class="card">
+        <h2>주사위</h2>
+        <div class="grid">
+          <div><label for="diceType">주사위</label><select id="diceType"><option value="4">D4</option><option value="6">D6</option><option value="8">D8</option><option value="10">D10</option><option value="12">D12</option><option value="20" selected>D20</option><option value="100">D100</option></select></div>
+          <div><label for="diceMod">보정치</label><input id="diceMod" type="number" value="0"></div>
+        </div>
+        <button id="rollDice" style="margin-top:10px">굴리기</button>
+        <div id="rollsList" style="margin-top:10px"></div>
+      </div>
+    </section>
+
+    <section id="tab-character" class="panel">
+      <div class="card">
+        <h2>내 캐릭터</h2>
+        <label for="charName">캐릭터 이름</label><input id="charName" maxlength="30">
+        <div class="grid">
+          <div><label for="str">근력 STR</label><input id="str" type="number" value="10"></div><div><label for="dex">민첩 DEX</label><input id="dex" type="number" value="10"></div>
+          <div><label for="con">체력 CON</label><input id="con" type="number" value="10"></div><div><label for="int">지능 INT</label><input id="int" type="number" value="10"></div>
+          <div><label for="wis">지혜 WIS</label><input id="wis" type="number" value="10"></div><div><label for="cha">매력 CHA</label><input id="cha" type="number" value="10"></div>
+          <div><label for="hp">HP</label><input id="hp" type="number" value="10"></div><div><label for="maxHp">최대 HP</label><input id="maxHp" type="number" value="10"></div>
+        </div>
+        <label for="items">소지품 (쉼표로 구분)</label><input id="items" placeholder="장검, 물약, 지도">
+        <label for="charDesc">상태 / 설명</label><textarea id="charDesc"></textarea>
+        <button id="saveCharacter">캐릭터 저장</button>
+      </div>
+      <div class="card"><h2>참가자 캐릭터</h2><div id="charactersList" class="muted small">아직 캐릭터가 없어.</div></div>
+    </section>
+
+    <section id="tab-secret" class="panel">
+      <div class="card">
+        <h2>내 비밀 정보</h2><div id="mySecret" class="notice">아직 전달된 비밀 정보가 없어.</div>
+      </div>
+      <div id="gmSecretPanel" class="card hidden">
+        <h2>GM: 비밀 정보 전달</h2>
+        <label for="secretTarget">받을 플레이어</label><select id="secretTarget"></select>
+        <label for="secretText">비밀 내용</label><textarea id="secretText" placeholder="선택한 플레이어에게만 보일 정보"></textarea>
+        <button id="sendSecret">비밀 정보 전달</button>
+        <div class="muted small" style="margin-top:8px">GM과 지정된 플레이어만 해당 내용을 읽을 수 있도록 데이터베이스 규칙으로 분리해.</div>
+      </div>
+    </section>
+
+    <section id="tab-records" class="panel">
+      <div class="card">
+        <h2>세션 기록</h2>
+        <div id="recordsList" class="log muted">기록이 없어.</div>
+        <div id="gmRecordPanel" class="hidden">
+          <label for="recordInput">GM 기록 추가</label><textarea id="recordInput" placeholder="중요한 사건, 단서, 결정 등을 기록해."></textarea>
+          <button id="addRecord">기록 추가</button>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer class="muted small" style="text-align:center;margin-top:25px">GM-TRPG · 온라인 세션 도구</footer>
+</div>
+<div id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script>
+(() => {
+"use strict";
+const PRESET = {
+  projectId: "gm-trpg-d3974",
+  databaseURL: "https://gm-trpg-d3974-default-rtdb.asia-southeast1.firebasedatabase.app",
+  authDomain: "gm-trpg-d3974.firebaseapp.com"
+};
+const $ = id => document.getElementById(id);
+const state = {app:null,auth:null,db:null,user:null,room:null,code:null,isGM:false,unsubs:[],roomData:null};
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const toast = msg => {const el=$("toast");el.textContent=msg;el.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(()=>el.style.display="none",2600)};
+const setStatus = (t,ok=false) => {$("connection").textContent=t;$("connection").style.color=ok?"var(--good)":"var(--muted)"};
+const roomRef = path => state.db.ref(`rooms/${state.code}/${path}`);
+const now = () => Date.now();
+function cleanListeners(){state.unsubs.forEach(fn=>{try{fn()}catch(e){}});state.unsubs=[]}
+function listen(ref,event,fn){ref.on(event,fn);state.unsubs.push(()=>ref.off(event,fn))}
+function firebaseConfigFromText(raw){
+  let source=raw.trim();
+  const first=source.indexOf("{"); const last=source.lastIndexOf("}");
+  if(first>=0 && last>first) source=source.slice(first,last+1);
+  source=source.replace(/([{,]\s*)([A-Za-z_$][\w$]*)(\s*:)/g,'$1"$2"$3').replace(/,\s*}/g,"}");
+  const obj=JSON.parse(source);
+  const cfg=obj.firebaseConfig || obj;
+  return {...cfg, ...PRESET, databaseURL:PRESET.databaseURL, projectId:PRESET.projectId, authDomain:cfg.authDomain || PRESET.authDomain};
+}
+async function connect(cfg){
+  if(!cfg.apiKey || !cfg.appId) throw new Error("Firebase 설정에 apiKey 또는 appId가 없어. Firebase 웹 앱 설정 전체를 붙여 넣어야 해.");
+  if(!window.firebase) throw new Error("Firebase SDK를 불러오지 못했어. 인터넷 연결을 확인해줘.");
+  if(state.app){try{await state.auth.signOut()}catch(e){}}
+  state.app=firebase.initializeApp(cfg,"gmtrpg-"+Date.now());
+  state.auth=state.app.auth();state.db=state.app.database();
+  await state.auth.signInAnonymously();
+  state.user=state.auth.currentUser;
+  localStorage.setItem("gmtrpg.firebaseConfig",JSON.stringify(cfg));
+  $("setup").classList.add("hidden");
+  setStatus("온라인 연결됨",true);
+  toast("Firebase 연결 성공");
+}
+async function boot(){
+  const saved=localStorage.getItem("gmtrpg.firebaseConfig");
+  if(saved){
+    try{await connect(JSON.parse(saved));}
+    catch(e){setStatus("연결 실패");$("setup").classList.remove("hidden");toast(e.message);}
+  }else setStatus("설정 필요");
+}
+function name(){return $("displayName").value.trim().slice(0,20)||"플레이어"}
+function showGame(){
+  $("lobby").classList.add("hidden");$("game").classList.remove("hidden");
+  $("currentCode").textContent=state.code;
+  $("gmScene").classList.toggle("hidden",!state.isGM);
+  $("gmSecretPanel").classList.toggle("hidden",!state.isGM);
+  $("gmRecordPanel").classList.toggle("hidden",!state.isGM);
+}
+function hideGame(){
+  cleanListeners();state.room=null;state.code=null;state.isGM=false;state.roomData=null;
+  $("game").classList.add("hidden");$("lobby").classList.remove("hidden");
+}
+async function createRoom(){
+  if(!state.user) throw new Error("먼저 Firebase에 연결해줘.");
+  let code,created=false;
+  for(let i=0;i<12&&!created;i++){
+    code=String(Math.floor(100000+Math.random()*900000));
+    const meta=await state.db.ref(`rooms/${code}/metadata`).transaction(v=>{
+      if(v!==null)return;
+      return {gmUid:state.user.uid,gmName:name(),createdAt:now(),version:1};
+    },undefined,false);
+    created=meta.committed;
+  }
+  if(!created)throw new Error("방 코드를 만들지 못했어. 다시 시도해줘.");
+  state.code=code;state.isGM=true;
+  await roomRef(`members/${state.user.uid}`).set({name:name(),joinedAt:now(),role:"GM"});
+  await roomRef("scene").set({text:"모험이 시작될 준비가 되었어.",updatedAt:now()});
+  showGame();subscribeRoom();toast("방 생성 완료");
+}
+async function joinRoom(){
+  if(!state.user)throw new Error("먼저 Firebase에 연결해줘.");
+  const code=$("roomCode").value.replace(/\D/g,"");
+  if(!/^\d{6}$/.test(code))throw new Error("6자리 방 코드를 입력해줘.");
+  const metaSnap=await state.db.ref(`rooms/${code}/metadata`).once("value");
+  if(!metaSnap.exists())throw new Error("해당 방을 찾을 수 없어.");
+  const membersSnap=await state.db.ref(`rooms/${code}/members`).once("value");
+  const members=membersSnap.val()||{};
+  if(!members[state.user.uid] && Object.keys(members).length>=6)throw new Error("방 인원이 가득 찼어. 최대 6명이야.");
+  state.code=code;state.isGM=metaSnap.val().gmUid===state.user.uid;
+  await roomRef(`members/${state.user.uid}`).set({name:name(),joinedAt:members[state.user.uid]?.joinedAt||now(),role:state.isGM?"GM":"PLAYER"});
+  showGame();subscribeRoom();toast("방 참가 완료");
+}
+function subscribeRoom(){
+  cleanListeners();
+  listen(roomRef("metadata"),"value",s=>{state.roomData=state.roomData||{};state.roomData.metadata=s.val()||{};});
+  listen(roomRef("members"),"value",s=>renderMembers(s.val()||{}));
+  listen(roomRef("scene"),"value",s=>{const v=s.val()||{};$("sceneView").textContent=v.text||"아직 장면이 없어.";if(state.isGM)$("sceneInput").value=v.text||"";});
+  listen(roomRef("actions"),"value",s=>renderList("actionsList",s.val(),"행동이 없어."));
+  listen(roomRef("rolls"),"value",s=>renderList("rollsList",s.val(),"아직 굴리지 않았어."));
+  listen(roomRef("records"),"value",s=>renderList("recordsList",s.val(),"기록이 없어."));
+  listen(roomRef("characters"),"value",s=>renderCharacters(s.val()||{}));
+  listen(roomRef(`secrets/${state.user.uid}`),"value",s=>{$("mySecret").textContent=s.val()?.text||"아직 전달된 비밀 정보가 없어.";});
+}
+function renderMembers(data){
+  const entries=Object.entries(data);$("roomMeta").textContent=`PLAYER ${entries.length}/6명`;
+  $("members").innerHTML=entries.map(([uid,m])=>`<div class="member"><span>${esc(m.name)} ${uid===state.user.uid?'<span class="pill">나</span>':''}</span><span class="muted small">${esc(m.role||"PLAYER")}</span></div>`).join("");
+  if(state.isGM){$("secretTarget").innerHTML=entries.filter(([uid])=>uid!==state.user.uid).map(([uid,m])=>`<option value="${esc(uid)}">${esc(m.name)}</option>`).join("")||'<option value="">대상 없음</option>';}
+}
+function renderList(id,data,empty){
+  const entries=Object.values(data||{}).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0)).slice(-40).reverse();
+  $(id).innerHTML=entries.length?entries.map(x=>`<div class="item"><strong>${esc(x.name||"플레이어")} <span class="muted small">${new Date(x.createdAt||Date.now()).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}</span></strong><div class="log">${esc(x.text||"")}</div></div>`).join(""):`<div class="muted small">${empty}</div>`;
+}
+function renderCharacters(data){
+  const entries=Object.entries(data);
+  $("charactersList").innerHTML=entries.length?entries.map(([uid,c])=>`<div class="item"><strong>${esc(c.name||"이름 없음")} · ${esc(c.ownerName||"")}</strong><div class="muted small">STR ${esc(c.str)} / DEX ${esc(c.dex)} / CON ${esc(c.con)} / INT ${esc(c.int)} / WIS ${esc(c.wis)} / CHA ${esc(c.cha)} · HP ${esc(c.hp)}/${esc(c.maxHp)}</div><div class="small">${esc(c.items||"")}</div><div class="small log">${esc(c.desc||"")}</div></div>`).join(""):"아직 캐릭터가 없어.";
+}
+function renderSecretTargets(data){
+  const s=$("secretTarget"),keep=s.value;
+  const members=state.roomData?.members||{};
+  if(!s.options.length)return;
+  if(keep && [...s.options].some(o=>o.value===keep))s.value=keep;
+}
+async function pushEntry(path,text){
+  if(!text.trim())throw new Error("내용을 입력해줘.");
+  await roomRef(path).push({name:name(),text:text.trim(),createdAt:now(),uid:state.user.uid});
+}
+async function saveScene(){
+  if(!state.isGM)throw new Error("GM만 장면을 수정할 수 있어.");
+  await roomRef("scene").set({text:$("sceneInput").value.trim(),updatedAt:now()});toast("장면 업데이트 완료");
+}
+async function saveCharacter(){
+  const fields=["str","dex","con","int","wis","cha","hp","maxHp"];
+  const c={name:$("charName").value.trim()||name(),ownerName:name(),items:$("items").value,desc:$("charDesc").value,updatedAt:now()};
+  fields.forEach(k=>c[k]=Number($(k).value)||0);
+  await roomRef(`characters/${state.user.uid}`).set(c);toast("캐릭터 저장 완료");
+}
+async function sendSecret(){
+  if(!state.isGM)throw new Error("GM만 비밀 정보를 전달할 수 있어.");
+  const uid=$("secretTarget").value,text=$("secretText").value.trim();
+  if(!uid)throw new Error("비밀 정보를 받을 플레이어를 선택해줘.");
+  if(!text)throw new Error("비밀 내용을 입력해줘.");
+  await roomRef(`secrets/${uid}`).set({text,updatedAt:now(),from:"GM"});
+  $("secretText").value="";toast("비밀 정보 전달 완료");
+}
+async function addRecord(){if(!state.isGM)throw new Error("GM만 기록을 추가할 수 있어.");await pushEntry("records",$("recordInput").value);$("recordInput").value="";toast("기록 저장 완료");}
+async function leaveRoom(){
+  if(!state.user||!state.code)return;
+  const code=state.code;
+  await state.db.ref(`rooms/${code}/members/${state.user.uid}`).remove();
+  if(state.isGM)await state.db.ref(`rooms/${code}/metadata`).update({closed:true});
+  hideGame();toast("방에서 나왔어.");
+}
+function guard(fn){return async()=>{try{await fn()}catch(e){console.error(e);toast(e.message||"오류가 발생했어.");}}}
+$("saveConfig").addEventListener("click",guard(async()=>{
+  const cfg=firebaseConfigFromText($("configJson").value.trim());
+  await connect(cfg);
+}));
+$("forgetConfig").addEventListener("click",()=>{localStorage.removeItem("gmtrpg.firebaseConfig");$("configJson").value="";toast("저장된 Firebase 설정을 지웠어.");});
+$("createRoom").addEventListener("click",guard(createRoom));
+$("joinRoom").addEventListener("click",guard(joinRoom));
+$("copyCode").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(state.code);toast("방 코드 복사 완료");}catch(e){toast("방 코드: "+state.code)}});
+$("leaveRoom").addEventListener("click",guard(leaveRoom));
+$("saveScene").addEventListener("click",guard(saveScene));
+$("sendAction").addEventListener("click",guard(async()=>{$("actionInput").value.trim()&&await pushEntry("actions",$("actionInput").value);$("actionInput").value="";toast("행동 제출 완료");}));
+$("rollDice").addEventListener("click",guard(async()=>{
+  const sides=Number($("diceType").value),mod=Number($("diceMod").value)||0,raw=1+Math.floor(Math.random()*sides),total=raw+mod;
+  await roomRef("rolls").push({name:name(),text:`D${sides}: ${raw}${mod>=0?"+":""}${mod} = ${total}`,createdAt:now(),uid:state.user.uid});
+}));
+$("saveCharacter").addEventListener("click",guard(saveCharacter));
+$("sendSecret").addEventListener("click",guard(sendSecret));
+$("addRecord").addEventListener("click",guard(addRecord));
+document.querySelectorAll("[data-tab]").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll("[data-tab]").forEach(x=>x.classList.toggle("active",x===b));
+  document.querySelectorAll(".panel").forEach(x=>x.classList.toggle("active",x.id==="tab-"+b.dataset.tab));
+}));
+$("displayName").value=localStorage.getItem("gmtrpg.name")||"";
+$("displayName").addEventListener("change",()=>localStorage.setItem("gmtrpg.name",name()));
+$("roomCode").addEventListener("input",e=>e.target.value=e.target.value.replace(/\D/g,"").slice(0,6));
+boot();
+})();
+</script>
+</body>
+</html>
